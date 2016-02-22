@@ -1,0 +1,52 @@
+```{r, warning=FALSE}
+library(mlbench)
+library(caret)
+library(ggplot2)
+```
+
+## Analyze Data, clean up if necessary
+```{r, warning=FALSE}
+dataset <- read.csv("Tweets.csv")
+
+# Look at the dimensions of the dataset
+dim(dataset)
+
+# Look at the first view variables of the dataset
+head(dataset)
+
+# Class of each of the variables
+sapply(dataset, class)
+
+# Remove the "tweet_id", "tweet_created", "tweet_coord", airline_sentiment_gold"" & "negativereason_gold" variables
+# These variables don't have enough values or don't add any value to the analysis
+dataset <- subset(dataset, select = -c(tweet_id, tweet_created, tweet_coord, 
+                                       airline_sentiment_gold, negativereason_gold)) 
+
+# Summary of the data
+summary(dataset)
+
+# Look at the class distribution of the dependent variable
+cbind(freq=table(dataset$airline_sentiment), percentage=prop.table(table(dataset$airline_sentiment))*100)
+```
+After looking at the data it is clear that the sentiment is Negative: 62.6%, Neutral: 21.2% & Positive: 16.1%. Not good for airlines unfortunately. This is just from the initial analysis.
+
+## Data Visualization
+```{r, echo=FALSE}
+# Bar plot of each airline seperated by sentiment
+ggplot(data = dataset, aes(x = airline, fill = airline_sentiment)) +
+  geom_bar(stat = "count")
+
+# Look at the distribution of airline_sentiment_confidence
+ggplot(data = dataset, aes(x = airline_sentiment_confidence, fill = airline_sentiment)) + 
+  geom_histogram(bins = 50) + 
+  facet_grid(airline_sentiment ~ airline, scales = "free_y") + 
+  scale_x_continuous(limits = c(0, 1)) +
+  scale_y_continuous(limits = c(0, 80))
+
+# Look at the distribution of airline_sentiment_confidence
+ggplot(data = dataset, aes(x = airline_sentiment_confidence, fill = airline_sentiment)) + 
+  geom_histogram(bins = 50) + 
+  facet_grid(airline_sentiment ~ airline, scales = "free_y") + 
+  scale_x_continuous(limits = c(0, 1)) +
+  scale_y_continuous(limits = c(0, 80))
+```
