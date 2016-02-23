@@ -50,3 +50,49 @@ ggplot(data = dataset, aes(x = airline_sentiment_confidence, fill = airline_sent
   scale_x_continuous(limits = c(0, 1)) +
   scale_y_continuous(limits = c(0, 80))
 ```
+
+## Create a Validation Dataset
+```{r, warning=FALSE}
+# Split data set with 80% for training and 20% for validation
+validationIndex <- createDataPartition(dataset$airline_sentiment, p=0.80, list=FALSE)
+
+# Select 20% of the data for validation
+validation <- dataset[-validationIndex,]
+
+# Use the remaining 80% of the data for training and testing the models
+dataset <- dataset[validationIndex,]
+```
+
+## Algorithm selections
+```{r, warning=FALSE}
+# 10 fold cross validation with 3 repeats
+trainControl <- trainControl(method="repeatedcv", number=10, repeats=3)
+
+# Use Accuracy and Kappa metrics for measuring performance
+metric <- "Accuracy"
+
+# kNN
+set.seed(7)
+fit.knn <- train(airline_sentiment~., data=dataset, method="knn", metric=metric,
+                 trControl=trainControl)
+
+# CART(Classification and Regression Trees)
+set.seed(7)
+fit.cart <- train(airline_sentiment~., data=dataset, method="rpart", metric=metric,
+                  trControl=trainControl)
+
+# Naive Bayes
+set.seed(7)
+fit.nb <- train(airline_sentiment~., data=dataset, method="nb", metric=metric, 
+                trControl=trainControl)
+
+# SVM with Radial Bias as Kernel
+set.seed(7)
+fit.svm <- train(airline_sentiment~., data=dataset, method="svmRadial", metric=metric, 
+                 trControl=trainControl)
+
+# Compare algorithms
+results <- resamples(list(KNN=fit.knn, CART=fit.cart, NB=fit.nb, SVM=fit.svm))
+summary(results)
+dotplot(results)
+```
