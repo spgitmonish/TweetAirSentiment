@@ -2,6 +2,8 @@
 library(mlbench)
 library(caret)
 library(ggplot2)
+library(tm)
+library(wordcloud)
 ```
 
 ## Analyze Data, clean up if necessary
@@ -51,48 +53,63 @@ ggplot(data = dataset, aes(x = airline_sentiment_confidence, fill = airline_sent
   scale_y_continuous(limits = c(0, 80))
 ```
 
+## Text analysis
+```{r, warning=FALSE}
+# Concatenate vectors after converting to characters(collapse says we want to collapse elements
+# of the vector rather than pasting vectors together)
+tweet_text <- paste(dataset$text, collapse = " ")
+
+# Create a vector source from the previously created vector
+tweet_source <- VectorSource(tweet_text)
+
+# Create a corpus(a collection of text)
+corpus <- Corpus(tweet_source)
+
+# Clean text: Convert to lower case, remove punctuation, strip white space &
+#             remove stop words(common words)
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, removeWords, stopwords("en"))
+
+# Create the document term matrix from the corpus
+tweet_dtm <- DocumentTermMatrix(corpus)
+tweet_dtm <- as.matrix(tweet_dtm)
+
+# Take the column sums of this matrix 
+frequency <- colSums(tweet_dtm)
+
+# Sort by the most frequently used words
+frequency <- sort(frequency, decreasing = TRUE)
+
+# Get a list of the words
+words <- names(frequency)
+
+# Plot the top 100 words in our cloud
+wordcloud(words[1:100], frequency[1:100])
+
+# After looking at the word cloud remove the words which represent airlines.
+# These words represent the twitter handles
+corpus <- tm_map(corpus, removeWords, c("americanair", "virginamerica", "southwestair",
+                                            "jetblue", "united", "usairways"))
+
+# Recreate the word cloud after removal
+tweet_dtm <- DocumentTermMatrix(corpus)
+tweet_dtm <- as.matrix(tweet_dtm)
+frequency <- colSums(tweet_dtm)
+frequency <- sort(frequency, decreasing = TRUE)
+words <- names(frequency)
+wordcloud(words[1:100], frequency[1:100])
+```
+
 ## Create a Validation Dataset
 ```{r, warning=FALSE}
 # Split data set with 80% for training and 20% for validation
-validationIndex <- createDataPartition(dataset$airline_sentiment, p=0.80, list=FALSE)
+validationIndex <- createDataPartition(dataset$airline_sentiment, p = 0.80, list = FALSE)
 
 # Select 20% of the data for validation
 validation <- dataset[-validationIndex,]
 
 # Use the remaining 80% of the data for training and testing the models
 dataset <- dataset[validationIndex,]
-```
-
-## Algorithm selections
-```{r, warning=FALSE}
-# 10 fold cross validation with 3 repeats
-trainControl <- trainControl(method="repeatedcv", number=10, repeats=3)
-
-# Use Accuracy and Kappa metrics for measuring performance
-metric <- "Accuracy"
-
-# kNN
-set.seed(7)
-fit.knn <- train(airline_sentiment~., data=dataset, method="knn", metric=metric,
-                 trControl=trainControl)
-
-# CART(Classification and Regression Trees)
-set.seed(7)
-fit.cart <- train(airline_sentiment~., data=dataset, method="rpart", metric=metric,
-                  trControl=trainControl)
-
-# Naive Bayes
-set.seed(7)
-fit.nb <- train(airline_sentiment~., data=dataset, method="nb", metric=metric, 
-                trControl=trainControl)
-
-# SVM with Radial Bias as Kernel
-set.seed(7)
-fit.svm <- train(airline_sentiment~., data=dataset, method="svmRadial", metric=metric, 
-                 trControl=trainControl)
-
-# Compare algorithms
-results <- resamples(list(KNN=fit.knn, CART=fit.cart, NB=fit.nb, SVM=fit.svm))
-summary(results)
-dotplot(results)
 ```
