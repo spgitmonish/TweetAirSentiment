@@ -56,7 +56,7 @@ ggplot(data = dataset, aes(x = airline_sentiment_confidence, fill = airline_sent
   scale_y_continuous(limits = c(0, 80))
 ```
 
-## Text analysis
+## Text analysis for the actual tweet
 ```{r, warning=FALSE}
 # Concatenate vectors after converting to characters(collapse says we want to collapse elements
 # of the vector rather than pasting vectors together)
@@ -118,6 +118,42 @@ validation <- dataset[-validationIndex,]
 dataset <- dataset[validationIndex,]
 ```
 
+## Text analysis of the negative reason
+```{r, warning=FALSE}
+# Concatenate vectors after converting to characters(collapse says we want to collapse elements
+# of the vector rather than pasting vectors together)
+reason_text <- paste(dataset$negativereason, collapse = " ")
+
+# Create a vector source from the previously created vector
+reason_source <- VectorSource(reason_text)
+
+# Create a corpus(a collection of text)
+reason_corpus <- Corpus(reason_source)
+
+# Clean text: Convert to lower case, remove punctuation, strip white space &
+#             remove stop words(common words)
+reason_corpus <- tm_map(reason_corpus, content_transformer(tolower))
+reason_corpus <- tm_map(reason_corpus, removePunctuation)
+reason_corpus <- tm_map(reason_corpus, stripWhitespace)
+reason_corpus <- tm_map(reason_corpus, removeWords, stopwords("en"))
+
+# Create the document term matrix from the corpus
+reason_dtm <- DocumentTermMatrix(reason_corpus)
+reason_dtm <- as.matrix(reason_dtm)
+
+# Take the column sums of this matrix 
+reason_frequency <- colSums(reason_dtm)
+
+# Sort by the most frequently used words
+reason_frequency <- sort(reason_frequency, decreasing = TRUE)
+
+# Get a list of the words
+reason_words <- names(reason_frequency)
+
+# Plot the top 100 words in our cloud
+wordcloud(reason_words, reason_frequency)
+```
+
 ## Naive Bayes Text Classification
 ```{r, warning=FALSE}
 # Convert the training and validation data sets to data frames
@@ -125,44 +161,81 @@ traindf <- as.data.frame(dataset)
 testdf <- as.data.frame(validation)
 
 # Create a corpus for training and validation data frames
-trainvector <- as.vector(traindf$text)
-testvector <- as.vector(testdf$text)
+text_trainvector <- as.vector(traindf$text)
+text_testvector <- as.vector(testdf$text)
 
 # Create source for the vectors
-trainsource <- VectorSource(trainvector)
-testsource <- VectorSource(testvector)
+text_trainsource <- VectorSource(text_trainvector)
+text_testsource <- VectorSource(text_testvector)
 
 # Create corpus for the data
-traincorpus <- Corpus(trainsource)
-testcorpus <- Corpus(testsource)
+text_traincorpus <- Corpus(text_trainsource)
+text_testcorpus <- Corpus(text_testsource)
 
 # Repeat the steps from the previous section(cleaning)
-traincorpus <- tm_map(traincorpus, content_transformer(tolower))
-traincorpus <- tm_map(traincorpus, removePunctuation)
-traincorpus <- tm_map(traincorpus, stripWhitespace)
-traincorpus <- tm_map(traincorpus, removeWords, stopwords("en"))
-traincorpus <- tm_map(traincorpus, removeWords, c("americanair", "virginamerica", "southwestair",
-                                                  "jetblue", "united", "usairways"))
+text_traincorpus <- tm_map(text_traincorpus, content_transformer(tolower))
+text_traincorpus <- tm_map(text_traincorpus, removePunctuation)
+text_traincorpus <- tm_map(text_traincorpus, stripWhitespace)
+text_traincorpus <- tm_map(text_traincorpus, removeWords, stopwords("en"))
+text_traincorpus <- tm_map(text_traincorpus, removeWords, 
+                           c("americanair", "virginamerica", "southwestair",
+                             "jetblue", "united", "usairways"))
 
-testcorpus <- tm_map(testcorpus, content_transformer(tolower))
-testcorpus <- tm_map(testcorpus, removePunctuation)
-testcorpus <- tm_map(testcorpus, stripWhitespace)
-testcorpus <- tm_map(testcorpus, removeWords, stopwords("en"))
-testcorpus <- tm_map(testcorpus, removeWords, c("americanair", "virginamerica", "southwestair",
-                                                "jetblue", "united", "usairways"))
+text_testcorpus <- tm_map(text_testcorpus, content_transformer(tolower))
+text_testcorpus <- tm_map(text_testcorpus, removePunctuation)
+text_testcorpus <- tm_map(text_testcorpus, stripWhitespace)
+text_testcorpus <- tm_map(text_testcorpus, removeWords, stopwords("en"))
+text_testcorpus <- tm_map(text_testcorpus, removeWords, c("americanair", "virginamerica",
+                                                          "southwestair","jetblue", "united",
+                                                          "usairways"))
 
 # Create the term document matrix
-trainmatrix <- t(TermDocumentMatrix(traincorpus))
-testmatrix <- t(TermDocumentMatrix(testcorpus))
+text_trainmatrix <- t(TermDocumentMatrix(text_traincorpus))
+text_testmatrix <- t(TermDocumentMatrix(text_testcorpus))
 
 # Using Naive Bayes and a airline_sentiment as the class variable train the classifier
-modelnb <- naiveBayes(as.matrix(trainmatrix), as.factor(traindf$airline_sentiment))
-modelnb1 <- naiveBayes(as.matrix(trainmatrix), as.factor(traindf$airline_sentiment), laplace = 3)
+text_modelnb <- naiveBayes(as.matrix(text_trainmatrix), 
+                           as.factor(traindf$airline_sentiment))
 
 # Predict!
-nbResults <- predict(modelnb, as.matrix(testmatrix))
-confusionMatrix(nbResults, testdf$airline_sentiment)
-nbResults1 <- predict(modelnb1, as.matrix(testmatrix))
-confusionMatrix(nbResults1, testdf$airline_sentiment)
+text_nbResults <- predict(text_modelnb, as.matrix(text_testmatrix))
+```
 
+## Naive Bayes Negative Reason Classification
+```{r, warning=FALSE}
+# Create a corpus for training and validation data frames
+reason_trainvector <- as.vector(traindf$negativereason)
+reason_testvector <- as.vector(testdf$negativereason)
+
+# Create source for the vectors
+reason_trainsource <- VectorSource(reason_trainvector)
+reason_testsource <- VectorSource(reason_testvector)
+
+# Create corpus for the data
+reason_traincorpus <- Corpus(reason_trainsource)
+reason_testcorpus <- Corpus(reason_testsource)
+
+# Repeat the steps from the previous section(cleaning)
+reason_traincorpus <- tm_map(reason_traincorpus, content_transformer(tolower))
+reason_traincorpus <- tm_map(reason_traincorpus, removePunctuation)
+reason_traincorpus <- tm_map(reason_traincorpus, stripWhitespace)
+reason_traincorpus <- tm_map(reason_traincorpus, removeWords, stopwords("en"))
+
+reason_testcorpus <- tm_map(reason_testcorpus, content_transformer(tolower))
+reason_testcorpus <- tm_map(reason_testcorpus, removePunctuation)
+reason_testcorpus <- tm_map(reason_testcorpus, stripWhitespace)
+reason_testcorpus <- tm_map(reason_testcorpus, removeWords, stopwords("en"))
+
+# Create the term document matrix
+reason_trainmatrix <- t(TermDocumentMatrix(reason_traincorpus))
+reason_testmatrix <- t(TermDocumentMatrix(reason_testcorpus))
+
+# Using Naive Bayes and a airline_sentiment as the class variable train the classifier
+reason_modelnb <- naiveBayes(as.matrix(reason_trainmatrix),
+                             as.factor(traindf$airline_sentiment))
+
+# Predict!
+reason_nbResults <- predict(reason_modelnb, as.matrix(reason_testmatrix))
+
+# Compare results
 ```
