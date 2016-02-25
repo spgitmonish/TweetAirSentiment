@@ -193,12 +193,24 @@ text_testcorpus <- tm_map(text_testcorpus, removeWords, c("americanair", "virgin
 text_trainmatrix <- t(TermDocumentMatrix(text_traincorpus))
 text_testmatrix <- t(TermDocumentMatrix(text_testcorpus))
 
-# Using Naive Bayes and a airline_sentiment as the class variable train the classifier
+# Using Naive Bayes and airline_sentiment as the class variable train the classifier
+set.seed(7)
 text_modelnb <- naiveBayes(as.matrix(text_trainmatrix), 
                            as.factor(traindf$airline_sentiment))
 
+# Using SVM and airline_sentiment as the class variable train the classifier
+set.seed(7)
+text_modelsvm <- svm(x = as.matrix(text_trainmatrix), 
+                     y = as.factor(traindf$airline_sentiment),
+                     kernel = "radial")
+
 # Predict!
 text_nbResults <- predict(text_modelnb, as.matrix(text_testmatrix))
+text_svmResults <- predict(text_modelsvm, as.matrix(text_testmatrix))
+
+# Compare the results
+confusionMatrix(text_nbResults, testdf$airline_sentiment)
+confusionMatrix(text_svmResults, testdf$airline_sentiment)
 ```
 
 ## Naive Bayes Negative Reason Classification
@@ -234,8 +246,16 @@ reason_testmatrix <- t(TermDocumentMatrix(reason_testcorpus))
 reason_modelnb <- naiveBayes(as.matrix(reason_trainmatrix),
                              as.factor(traindf$airline_sentiment))
 
+# Using SVM and airline_sentiment as the class variable train the classifier
+reason_modelsvm <- svm(x = as.matrix(text_trainmatrix), 
+                       y = as.factor(traindf$airline_sentiment),
+                       kernel = "radial")
+
 # Predict!
 reason_nbResults <- predict(reason_modelnb, as.matrix(reason_testmatrix))
+reason_svmResults <- predict(reason_modelsvm, as.matrix(reason_testmatrix))
 
-# Compare results
+# Compare the results
+confusionMatrix(reason_nbResults, testdf$airline_sentiment)
+confusionMatrix(reason_svmResults, testdf$airline_sentiment)
 ```
