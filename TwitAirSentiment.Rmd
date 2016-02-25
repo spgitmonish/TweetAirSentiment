@@ -154,7 +154,7 @@ reason_words <- names(reason_frequency)
 wordcloud(reason_words, reason_frequency)
 ```
 
-## Naive Bayes Text Classification
+## Naive Bayes & SVM Text Classification
 ```{r, warning=FALSE}
 # Convert the training and validation data sets to data frames
 traindf <- as.data.frame(dataset)
@@ -193,15 +193,26 @@ text_testcorpus <- tm_map(text_testcorpus, removeWords, c("americanair", "virgin
 text_trainmatrix <- t(TermDocumentMatrix(text_traincorpus))
 text_testmatrix <- t(TermDocumentMatrix(text_testcorpus))
 
-# Using Naive Bayes and a airline_sentiment as the class variable train the classifier
+# Using Naive Bayes and airline_sentiment as the class variable train the classifier
+set.seed(7)
 text_modelnb <- naiveBayes(as.matrix(text_trainmatrix), 
                            as.factor(traindf$airline_sentiment))
 
+# Using SVM with radial bias and airline_sentiment as the class variable train the classifier
+set.seed(7)
+text_modelsvm <- svm(x = as.matrix(text_trainmatrix), y = traindf$airline_sentiment, 
+                     kernel = "radial", k = 10)
+
 # Predict!
 text_nbResults <- predict(text_modelnb, as.matrix(text_testmatrix))
+text_svmResults <- predict(reason_modelsvm, as.matrix(reason_testmatrix))
+
+# Compare results
+confusionMatrix(text_nbResults, testdf$airline_sentiment)
+confusionMatrix(text_svmResults, testdf$airline_sentiment)
 ```
 
-## Naive Bayes Negative Reason Classification
+## Naive Bayes & SVM Negative Reason Classification
 ```{r, warning=FALSE}
 # Create a corpus for training and validation data frames
 reason_trainvector <- as.vector(traindf$negativereason)
@@ -230,12 +241,20 @@ reason_testcorpus <- tm_map(reason_testcorpus, removeWords, stopwords("en"))
 reason_trainmatrix <- t(TermDocumentMatrix(reason_traincorpus))
 reason_testmatrix <- t(TermDocumentMatrix(reason_testcorpus))
 
-# Using Naive Bayes and a airline_sentiment as the class variable train the classifier
-reason_modelnb <- naiveBayes(as.matrix(reason_trainmatrix),
-                             as.factor(traindf$airline_sentiment))
+# Using Naive Bayes and airline_sentiment as the class variable train the classifier
+set.seed(7)
+reason_modelnb <- naiveBayes(as.matrix(reason_trainmatrix), traindf$airline_sentiment)
+
+# Using SVM with radial bias and airline_sentiment as the class variable train the classifier
+set.seed(7)
+reason_modelsvm <- svm(x = as.matrix(reason_trainmatrix), y = traindf$airline_sentiment, 
+                       kernel = "radial", k = 10)
 
 # Predict!
 reason_nbResults <- predict(reason_modelnb, as.matrix(reason_testmatrix))
+reason_svmResults <- predict(reason_modelsvm, as.matrix(reason_testmatrix))
 
 # Compare results
+confusionMatrix(reason_nbResults, testdf$airline_sentiment)
+confusionMatrix(reason_svmResults, testdf$airline_sentiment)
 ```
