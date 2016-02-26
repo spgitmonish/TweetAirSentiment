@@ -6,6 +6,7 @@ library(tm)
 library(wordcloud)
 library(SparseM)
 library(e1071)
+library(RTextTools)
 ```
 
 ## Analyze Data, clean up if necessary
@@ -154,7 +155,7 @@ reason_words <- names(reason_frequency)
 wordcloud(reason_words, reason_frequency)
 ```
 
-## Naive Bayes & SVM Text Classification
+## Naive Bayes Text Classification
 ```{r, warning=FALSE}
 # Convert the training and validation data sets to data frames
 traindf <- as.data.frame(dataset)
@@ -198,22 +199,14 @@ set.seed(7)
 text_modelnb <- naiveBayes(as.matrix(text_trainmatrix), 
                            as.factor(traindf$airline_sentiment))
 
-# Using SVM with radial bias and airline_sentiment as the class variable train the classifier
-set.seed(7)
-text_modelsvm <- svm(x = as.matrix(text_trainmatrix), 
-                     y = as.factor(traindf$airline_sentiment),
-                     kernel = "radial")
-
 # Predict!
 text_nbResults <- predict(text_modelnb, as.matrix(text_testmatrix))
-text_svmResults <- predict(text_modelsvm, as.matrix(text_testmatrix))
 
 # Compare the results
 confusionMatrix(text_nbResults, testdf$airline_sentiment)
-confusionMatrix(text_svmResults, testdf$airline_sentiment)
 ```
 
-## Naive Bayes & SVM Negative Reason Classification
+## Naive Bayes Negative Reason Classification
 ```{r, warning=FALSE}
 # Create a corpus for training and validation data frames
 reason_trainvector <- as.vector(traindf$negativereason)
@@ -246,16 +239,100 @@ reason_testmatrix <- t(TermDocumentMatrix(reason_testcorpus))
 set.seed(7)
 reason_modelnb <- naiveBayes(as.matrix(reason_trainmatrix), traindf$airline_sentiment)
 
-# Using SVM and airline_sentiment as the class variable train the classifier
-reason_modelsvm <- svm(x = as.matrix(text_trainmatrix), 
-                       y = as.factor(traindf$airline_sentiment),
-                       kernel = "radial")
-
 # Predict!
 reason_nbResults <- predict(reason_modelnb, as.matrix(reason_testmatrix))
-reason_svmResults <- predict(reason_modelsvm, as.matrix(reason_testmatrix))
 
 # Compare the results
 confusionMatrix(reason_nbResults, testdf$airline_sentiment)
-confusionMatrix(reason_svmResults, testdf$airline_sentiment)
+```
+
+## Try RTextTools library and SVM as the algorithm
+```{r, warning=FALSE}
+# Create a Document Term Matrix
+dtMatrix <- create_matrix(traindf$text, language = "english", 
+                          removeNumbers = TRUE, removeStopwords = TRUE,
+                          minWordLength = 3, removePunctuation = TRUE,
+                          stripWhitespace = TRUE, toLower = TRUE,
+                          weighting = tm::weightTfIdf)
+
+# Configure the training data
+container <- create_container(dtMatrix, traindf$airline_sentiment, 
+                              trainSize=1:11714, virgin=FALSE)
+
+# Train a SVM Model
+model <- train_model(container, "SVM", kernel = "radial", cost = 10, cross = 10)
+
+# Create a prediction document term matrix
+predMatrix <- create_matrix(testdf$text, originalMatrix = dtMatrix, 
+                            removeNumbers = TRUE, removeStopwords = TRUE,
+                            minWordLength = 3, removePunctuation = TRUE,
+                            stripWhitespace = TRUE, toLower = TRUE,
+                            weighting = tm::weightTfIdf)
+
+# Configure the test data
+testcontainer <- create_container(predMatrix, testdf$airline_sentiment, 
+                                  trainSize = 1:2926, virgin = FALSE)
+
+# Predict!
+results <- classify_model(testcontainer, model)
+
+# Compare the results
+confusionMatrix(results$SVM_LABEL, testdf$airline_sentiment)
+```
+
+## Combine the "text" variable and the "negativereason" variable and try SVM
+```{r, warning=FALSE}
+# Create a Document Term Matrix for the "text" variable
+text_dtMatrix <- create_matrix(traindf$text, language = "english", 
+                               removeNumbers = TRUE, removeStopwords = TRUE,
+                               minWordLength = 3, removePunctuation = TRUE,
+                               stripWhitespace = TRUE, toLower = TRUE,
+                               weighting = tm::weightTfIdf)
+
+# Create a Document Term Matrix for the "negativereason" variable
+reason_dtMatrix <- create_matrix(traindf$negativereason, language = "english", 
+                                 removeNumbers = TRUE, removeStopwords = TRUE,
+                                 minWordLength = 3, removePunctuation = TRUE,
+                                 stripWhitespace = TRUE, toLower = TRUE, 
+                                 weighting = tm::weightTfIdf)
+
+# Combine the two matrices
+combined_dtMatrix <- cbind(text_dtMatrix, reason_dtMatrix)
+  
+# Configure the training data
+combined_container <- create_container(combined_dtMatrix, traindf$airline_sentiment,
+                                       trainSize = 1:11714, virgin = FALSE)
+
+# Train a SVM Model
+set.seed(7)
+model <- train_model(combined_container, "SVM", kernel = "radial", cost = 10, cross = 10)
+
+# Create a prediction Document Term Matrix for the "text" variable
+text_predMatrix <- create_matrix(testdf$text, language = "english", 
+                                 originalMatrix = text_dtMatrix,
+                                 removeNumbers = TRUE, removeStopwords = TRUE,
+                                 minWordLength = 3, removePunctuation = TRUE,
+                                 stripWhitespace = TRUE, toLower = TRUE,
+                                 weighting = tm::weightTfIdf)
+
+# Create a prediction Document Term Matrix for the "negativereason" variable
+reason_predMatrix <- create_matrix(testdf$negativereason, language = "english", 
+                                   originalMatrix = reason_dtMatrix, 
+                                   removeNumbers = TRUE, removeStopwords = TRUE,
+                                   minWordLength = 3, removePunctuation = TRUE,
+                                   stripWhitespace = TRUE, toLower = TRUE,
+                                   weighting = tm::weightTfIdf)
+
+# Combine the two matrices
+combined_predMatrix <- cbind(text_predMatrix, reason_predMatrix)
+
+# Configure the test data
+combined_testcontainer <- create_container(combined_predMatrix, testdf$airline_sentiment, 
+                                           trainSize = 1:2926, virgin = FALSE)
+
+# Predict!
+combined_results <- classify_model(combined_testcontainer, model)
+
+# Compare the results
+confusionMatrix(combined_results$SVM_LABEL, testdf$airline_sentiment)
 ```
