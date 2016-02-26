@@ -42,20 +42,20 @@ After looking at the data it is clear that the sentiment is Negative: 62.6%, Neu
 ggplot(data = dataset, aes(x = airline, fill = airline_sentiment)) +
   geom_bar(stat = "count")
 
-# Look at the distribution of airline_sentiment_confidence
-ggplot(data = dataset, aes(x = airline_sentiment_confidence, fill = airline_sentiment)) + 
-  geom_histogram(bins = 50) + 
-  facet_grid(airline_sentiment ~ airline, scales = "free_y") + 
-  scale_x_continuous(limits = c(0, 1)) +
-  scale_y_continuous(limits = c(0, 80))
-
-# Look at the distribution of airline_sentiment_confidence
-ggplot(data = dataset, aes(x = airline_sentiment_confidence, fill = airline_sentiment)) + 
-  geom_histogram(bins = 50) + 
-  facet_grid(airline_sentiment ~ airline, scales = "free_y") + 
-  scale_x_continuous(limits = c(0, 1)) +
-  scale_y_continuous(limits = c(0, 80))
+# Bar plot of each retweet count seperated by airline
+ggplot(data = dataset, aes(x = retweet_count)) +
+  facet_grid(~airline) + 
+  geom_bar(stat = "count") +
+  scale_x_continuous(limits = c(0, 10), breaks = 0:10) +
+  scale_y_continuous(limits = c(0, 300))
 ```
+
+Things to note from the previous visualization section:
+1. The negative sentiment is very obvious when visualized
+2. United, US Airways, American are the top 3 in negative tweets. 
+3. Virgin Atlantic is almost uniformly divided in sentiment
+4. The retweet count is the highest for United
+5. I chose to ignore the other numeric fields for any data visualization as I am focused more on Textual Analysis and predictions. 
 
 ## Text analysis for the actual tweet
 ```{r, warning=FALSE}
@@ -106,18 +106,7 @@ words <- names(frequency)
 wordcloud(words[1:100], frequency[1:100])
 ```
 
-## Create a Validation Dataset
-```{r, warning=FALSE}
-# Split data set with 80% for training and 20% for validation
-set.seed(7)
-validationIndex <- createDataPartition(dataset$airline_sentiment, p = 0.80, list = FALSE)
-
-# Select 20% of the data for validation
-validation <- dataset[-validationIndex,]
-
-# Use the remaining 80% of the data for training and testing the models
-dataset <- dataset[validationIndex,]
-```
+From the word cloud for the "text" variable we see that "Flight" is the most often used word. The other words which stand out are "get", "cancelled", "now", "customer service", "thanks" to name a few
 
 ## Text analysis of the negative reason
 ```{r, warning=FALSE}
@@ -153,6 +142,23 @@ reason_words <- names(reason_frequency)
 
 # Plot the top 100 words in our cloud
 wordcloud(reason_words, reason_frequency)
+```
+
+From the word cloud of the "negativereason" variable it is very obvious what words are used when 
+this field was used to report the reasons. The words displayed in the cloud are not surprising when
+customers face issues with airlines. 
+
+## Create a Validation Dataset
+```{r, warning=FALSE}
+# Split data set with 80% for training and 20% for validation
+set.seed(7)
+validationIndex <- createDataPartition(dataset$airline_sentiment, p = 0.80, list = FALSE)
+
+# Select 20% of the data for validation
+validation <- dataset[-validationIndex,]
+
+# Use the remaining 80% of the data for training and testing the models
+dataset <- dataset[validationIndex,]
 ```
 
 ## Naive Bayes Text Classification
