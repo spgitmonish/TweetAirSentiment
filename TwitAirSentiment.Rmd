@@ -212,6 +212,9 @@ text_nbResults <- predict(text_modelnb, as.matrix(text_testmatrix))
 confusionMatrix(text_nbResults, testdf$airline_sentiment)
 ```
 
+The results from the Naive Bayes Classification looks pretty bad using the "text" variable! Let's try the 
+"negativereason" variable next
+
 ## Naive Bayes Negative Reason Classification
 ```{r, warning=FALSE}
 # Create a corpus for training and validation data frames
@@ -252,6 +255,8 @@ reason_nbResults <- predict(reason_modelnb, as.matrix(reason_testmatrix))
 confusionMatrix(reason_nbResults, testdf$airline_sentiment)
 ```
 
+Not much of a difference again when using the "negativereason" variable as the independent variable
+
 ## Try RTextTools library and SVM as the algorithm
 ```{r, warning=FALSE}
 # Create a Document Term Matrix
@@ -286,6 +291,8 @@ results <- classify_model(testcontainer, model)
 confusionMatrix(results$SVM_LABEL, testdf$airline_sentiment)
 ```
 
+The accuracy of classification improves when using SVM for classification!
+
 ## Combine the "text" variable and the "negativereason" variable and try SVM
 ```{r, warning=FALSE}
 # Create a Document Term Matrix for the "text" variable
@@ -311,7 +318,7 @@ combined_container <- create_container(combined_dtMatrix, traindf$airline_sentim
 
 # Train a SVM Model
 set.seed(7)
-model <- train_model(combined_container, "SVM", kernel = "radial", cost = 10, cross = 10)
+modelsvm <- train_model(combined_container, "SVM", kernel = "radial", cost = 10, cross = 10)
 
 # Create a prediction Document Term Matrix for the "text" variable
 text_predMatrix <- create_matrix(testdf$text, language = "english", 
@@ -337,8 +344,37 @@ combined_testcontainer <- create_container(combined_predMatrix, testdf$airline_s
                                            trainSize = 1:2926, virgin = FALSE)
 
 # Predict!
-combined_results <- classify_model(combined_testcontainer, model)
+combined_results_svm <- classify_model(combined_testcontainer, modelsvm)
 
 # Compare the results
-confusionMatrix(combined_results$SVM_LABEL, testdf$airline_sentiment)
+confusionMatrix(combined_results_svm$SVM_LABEL, testdf$airline_sentiment)
+```
+
+After combining the matrices the accuracy shoots up! The Kappa looks pretty good as well. Let's try a couple of 
+other algorithms to see if our accuracy improves. 
+
+```{r, warning=FALSE}
+# Random Forest
+set.seed(7)
+modelrf <- train_model(combined_container, "RF", ntree = 3, cross = 10)
+combined_results_rf <- classify_model(combined_testcontainer, modelrf)
+confusionMatrix(combined_results_rf$FORESTS_LABEL, testdf$airline_sentiment)
+
+# GLMNET
+set.seed(7)
+modelglmnet <- train_model(combined_container, "GLMNET", cross = 10)
+combined_results_glmnet <- classify_model(combined_testcontainer, modelglmnet)
+confusionMatrix(combined_results_glmnet$GLMNET_LABEL, testdf$airline_sentiment)
+
+# TREE
+set.seed(7)
+modeltree <- train_model(combined_container, "TREE", ntree = 3, cross = 10)
+combined_results_tree <- classify_model(combined_testcontainer, modeltree)
+confusionMatrix(combined_results_tree$TREE_LABEL, testdf$airline_sentiment)
+
+# Boosting
+set.seed(7)
+modelboosting <- train_model(combined_container, "BOOSTING", cross = 10)
+combined_results_boosting <- classify_model(combined_testcontainer, modelboosting)
+confusionMatrix(combined_results_boosting$LOGITBOOST_LABEL, testdf$airline_sentiment)
 ```
