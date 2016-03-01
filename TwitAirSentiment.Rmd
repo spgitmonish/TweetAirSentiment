@@ -378,3 +378,27 @@ modelboosting <- train_model(combined_container, "BOOSTING", cross = 10)
 combined_results_boosting <- classify_model(combined_testcontainer, modelboosting)
 confusionMatrix(combined_results_boosting$LOGITBOOST_LABEL, testdf$airline_sentiment)
 ```
+
+After running various algorithms, SVM seems to be the best option. Tune SVM and finalize the algorithm
+
+## Tune SVM with the cost parameter
+```{r, warning=FALSE}
+# Grid search for the best combination for "cost"
+cost_grid <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+# Index for the grid search
+index <- 1
+
+# Emtpy list for pushing the results from the grid search
+results_list <- list()
+
+# Loop through each combination
+for(cost in cost_grid){
+  set.seed(7)
+  modelsvm <- train_model(combined_container, "SVM", kernel = "radial", 
+                          cost = cost, cross = 10)
+  combined_results_svm <- classify_model(combined_testcontainer, modelsvm)
+  results_list[[index]] <- combined_results_svm
+  index <- index + 1
+}
+```
