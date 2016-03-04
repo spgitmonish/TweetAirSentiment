@@ -384,7 +384,7 @@ After running various algorithms, SVM seems to be the best option. Tune SVM and 
 ## Tune SVM with the cost parameter
 ```{r, warning=FALSE}
 # Grid search for the best combination for "cost"
-cost_grid <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+cost_grid <- c(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500)
 
 # Index for the grid search
 index <- 1
@@ -401,4 +401,68 @@ for(cost in cost_grid){
   results_list[[index]] <- combined_results_svm
   index <- index + 1
 }
+
+# Box plot of accuracy stats
+par(mfrow=c(2, 7))
+for (index in 1:length(results_list)){
+  boxplot(results_list[[index]]$SVM_PROB)
+}
+```
+
+From the results it looks like a cost of 200 would be the best for the SVM algorithm so time to finalize the model as SVM
+
+```{r, warning=FALSE}
+# Create a Document Term Matrix for the "text" variable
+text_dtMatrix <- create_matrix(traindf$text, language = "english", 
+                               removeNumbers = TRUE, removeStopwords = TRUE,
+                               minWordLength = 3, removePunctuation = TRUE,
+                               stripWhitespace = TRUE, toLower = TRUE,
+                               weighting = tm::weightTfIdf)
+
+# Create a Document Term Matrix for the "negativereason" variable
+reason_dtMatrix <- create_matrix(traindf$negativereason, language = "english", 
+                                 removeNumbers = TRUE, removeStopwords = TRUE,
+                                 minWordLength = 3, removePunctuation = TRUE,
+                                 stripWhitespace = TRUE, toLower = TRUE, 
+                                 weighting = tm::weightTfIdf)
+
+# Combine the two matrices
+combined_dtMatrix <- cbind(text_dtMatrix, reason_dtMatrix)
+  
+# Configure the training data
+combined_container <- create_container(combined_dtMatrix, traindf$airline_sentiment,
+                                       trainSize = 1:11714, virgin = FALSE)
+
+# Train a SVM Model
+set.seed(7)
+modelsvm <- train_model(combined_container, "SVM", kernel = "radial", cost = 200, cross = 10)
+
+# Create a prediction Document Term Matrix for the "text" variable
+text_predMatrix <- create_matrix(testdf$text, language = "english", 
+                                 originalMatrix = text_dtMatrix,
+                                 removeNumbers = TRUE, removeStopwords = TRUE,
+                                 minWordLength = 3, removePunctuation = TRUE,
+                                 stripWhitespace = TRUE, toLower = TRUE,
+                                 weighting = tm::weightTfIdf)
+
+# Create a prediction Document Term Matrix for the "negativereason" variable
+reason_predMatrix <- create_matrix(testdf$negativereason, language = "english", 
+                                   originalMatrix = reason_dtMatrix, 
+                                   removeNumbers = TRUE, removeStopwords = TRUE,
+                                   minWordLength = 3, removePunctuation = TRUE,
+                                   stripWhitespace = TRUE, toLower = TRUE,
+                                   weighting = tm::weightTfIdf)
+
+# Combine the two matrices
+combined_predMatrix <- cbind(text_predMatrix, reason_predMatrix)
+
+# Configure the test data
+combined_testcontainer <- create_container(combined_predMatrix, testdf$airline_sentiment, 
+                                           trainSize = 1:2926, virgin = FALSE)
+
+# Predict!
+combined_results_svm <- classify_model(combined_testcontainer, modelsvm)
+
+# Compare the results
+confusionMatrix(combined_results_svm$SVM_LABEL, testdf$airline_sentiment)
 ```
